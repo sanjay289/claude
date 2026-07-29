@@ -1,0 +1,11 @@
+#!/data/data/com.termux/files/usr/bin/bash
+export DISABLE_AUTOUPDATER=1
+export CLAUDE_CODE_DISABLE_AUTOUPDATE=1
+CLI="$(npm root -g)/@anthropic-ai/claude-code/cli.js"
+
+if [ ! -f "$CLI" ]; then
+  echo "ERROR: cli.js missing. Run the permanent setup again."
+  exit 1
+fi
+
+exec node "\( CLI" " \)@"
