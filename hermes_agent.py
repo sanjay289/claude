@@ -9,6 +9,38 @@ import ollama
 
 MODEL = "hermes3"
 
+SKILLS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills")
+
+
+def parse_skill_file(path: str) -> dict:
+    with open(path, "r") as f:
+        text = f.read()
+    meta = {"name": os.path.splitext(os.path.basename(path))[0], "description": ""}
+    body = text
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            frontmatter = text[3:end].strip()
+            body = text[end + 4:].lstrip("\n")
+            for line in frontmatter.splitlines():
+                if ":" in line:
+                    key, _, value = line.partition(":")
+                    meta[key.strip()] = value.strip()
+    meta["body"] = body.strip()
+    return meta
+
+
+def discover_skills() -> dict:
+    skills = {}
+    if not os.path.isdir(SKILLS_DIR):
+        return skills
+    for fname in sorted(os.listdir(SKILLS_DIR)):
+        if fname.endswith(".md"):
+            skill = parse_skill_file(os.path.join(SKILLS_DIR, fname))
+            skills[skill["name"]] = skill
+    return skills
+
+
 TOOLS = [
     {
         "type": "function",
@@ -73,6 +105,28 @@ TOOLS = [
                 }
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_skills",
+            "description": "List available skills in the skill hub, with a one-line description of each",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "use_skill",
+            "description": "Load a skill's full instructions by name so they can be followed for the current task",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Skill name, as returned by list_skills"}
+                },
+                "required": ["name"]
+            }
+        }
     }
 ]
 
@@ -120,12 +174,30 @@ def list_dir(path: str = '.') -> str:
         return f"Error: {e}"
 
 
+def list_skills() -> str:
+    skills = discover_skills()
+    if not skills:
+        return "(no skills found)"
+    return "\n".join(f"{name}: {s['description']}" for name, s in skills.items())
+
+
+def use_skill(name: str) -> str:
+    skills = discover_skills()
+    skill = skills.get(name)
+    if not skill:
+        available = ", ".join(skills) or "(none)"
+        return f"Unknown skill '{name}'. Available: {available}"
+    return skill["body"]
+
+
 TOOL_MAP = {
     "run_shell": run_shell,
     "read_file": read_file,
     "write_file": write_file,
     "get_datetime": get_datetime,
     "list_dir": list_dir,
+    "list_skills": list_skills,
+    "use_skill": use_skill,
 }
 
 
@@ -146,6 +218,11 @@ def agent_loop(user_input: str, max_iterations: int = 10) -> str:
             "content": (
                 "You are a helpful AI assistant with access to tools. "
                 "Use tools when needed to answer the user's request. "
+                "You also have a skill hub: call list_skills to see what's "
+                "available, and use_skill(name) to load a skill's instructions "
+                "before doing a task it covers (e.g. summarizing, reviewing code, "
+                "or running a risky shell command). Prefer loading a matching "
+                "skill over guessing at the right approach. "
                 "Think step by step and call tools as required."
             )
         },
