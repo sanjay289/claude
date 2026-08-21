@@ -2,12 +2,14 @@
 """Hermes agent loop with tool execution via Ollama."""
 
 import json
+import re
 import subprocess
 import datetime
 import os
 import ollama
 
 MODEL = "hermes3"
+MAX_FAKE_TOOL_CALL_RETRIES = 2
 
 SKILLS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills")
 
@@ -201,6 +203,24 @@ TOOL_MAP = {
 }
 
 
+def looks_like_fake_tool_call(content: str) -> bool:
+    """True if content is prose containing a JSON blob that names a real tool,
+    i.e. the model wrote a tool call as text instead of calling it for real."""
+    if not content:
+        return False
+    match = re.search(r"\{.*\}", content, re.DOTALL)
+    if not match:
+        return False
+    try:
+        data = json.loads(match.group(0))
+    except (json.JSONDecodeError, ValueError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    name = data.get("name") or data.get("tool") or data.get("function")
+    return isinstance(name, str) and name in TOOL_MAP
+
+
 def call_tool(name: str, args: dict) -> str:
     fn = TOOL_MAP.get(name)
     if not fn:
@@ -228,6 +248,7 @@ def agent_loop(user_input: str, max_iterations: int = 10) -> str:
         },
         {"role": "user", "content": user_input}
     ]
+    fake_tool_call_retries = 0
 
     for i in range(max_iterations):
         print(f"\n[iteration {i+1}]")
@@ -238,6 +259,22 @@ def agent_loop(user_input: str, max_iterations: int = 10) -> str:
         messages.append({"role": "assistant", "content": msg.content or "", "tool_calls": msg.tool_calls})
 
         if not msg.tool_calls:
+            if looks_like_fake_tool_call(msg.content) and fake_tool_call_retries < MAX_FAKE_TOOL_CALL_RETRIES:
+                fake_tool_call_retries += 1
+                print(f"  [warn] tool call written as text, asking model to retry "
+                      f"({fake_tool_call_retries}/{MAX_FAKE_TOOL_CALL_RETRIES})")
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "That was a tool call written as text instead of an actual tool "
+                        "call. Call the tool for real using the tool-calling interface."
+                    )
+                })
+                continue
+            if looks_like_fake_tool_call(msg.content):
+                print(f"  [warn] still getting fake tool calls after "
+                      f"{MAX_FAKE_TOOL_CALL_RETRIES} retries, giving up and "
+                      f"returning raw text")
             return msg.content or "(no response)"
 
         # Execute each tool call
