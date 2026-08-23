@@ -6,11 +6,17 @@ plain, conditional (branch on a router function), or fan-out (run several
 nodes in parallel on deep copies of the state, then join into one node with
 the per-branch results collected).
 
-State is a single dict threaded through the whole run. A regular node
-returns a dict of updates that gets merged into that state. A fan-out
-branch's return value is *not* merged automatically — it's collected into
-state[result_key] keyed by branch name, since branches run concurrently and
-merging into shared state directly would race.
+State is a single dict threaded through the whole run. A regular node can
+update it two ways, and both are supported: mutate the `state` dict passed
+in (it's the same object, not a copy), and/or return a dict of updates,
+which — if truthy — is merged in with `state.update(update)` right after
+the node returns. If a node does both, the returned dict's keys win over
+any in-place mutation of those same keys. A fan-out branch is different: it
+runs on its own deep copy of state (see below), so neither in-place
+mutation nor a returned dict is merged automatically — the return value is
+instead collected into state[result_key] keyed by branch name, since
+branches run concurrently and merging into shared state directly would
+race.
 """
 
 import concurrent.futures
@@ -63,9 +69,9 @@ class Graph:
                 print(f"[graph] -> {current}")
 
             fn = self._nodes[current]
-            update = fn(state)
+            update = fn(state)  # fn may also have mutated state in place
             if update:
-                state.update(update)
+                state.update(update)  # returned keys win over in-place mutation
 
             if current not in self._edges:
                 raise ValueError(
