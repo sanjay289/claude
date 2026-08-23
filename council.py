@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Claude council: parallel multi-model deliberation via Ollama.
 
-Each member model answers the prompt independently and in parallel, then a
-separate chair model reads every answer and writes a synthesis noting where
-the council agrees and disagrees.
+Built on graph_engine.Graph: a fan-out node asks every member model in
+parallel, then joins into a chair node that synthesizes a final answer.
 """
 
-import concurrent.futures
 import subprocess
 import time
 
 import ollama
+
+from graph_engine import Graph, END
 
 MEMBERS = ["gpt-oss:120b-cloud", "minimax-m3:cloud", "llama3.2:3b"]
 CHAIR = "nemotron-3-ultra:cloud"
@@ -45,57 +45,62 @@ def ensure_server_running(timeout: float = 15.0) -> None:
     raise RuntimeError("ollama server did not come up in time")
 
 
-def ask_member(model: str, question: str) -> str:
-    try:
-        response = ollama.chat(
-            model=model,
-            messages=[{"role": "user", "content": question}],
-        )
-        return response.message.content or "(empty response)"
-    except Exception as e:
-        return f"(error: {e})"
+def make_ask_node(model: str):
+    def ask(state: dict) -> str:
+        try:
+            response = ollama.chat(
+                model=model,
+                messages=[{"role": "user", "content": state["question"]}],
+            )
+            answer = response.message.content or "(empty response)"
+        except Exception as e:
+            answer = f"(error: {e})"
+        color = COLORS.get(model, "")
+        print(f"{color}[{model}]{RESET}\n{answer}\n")
+        return answer
+    return ask
 
 
-def gather_opinions(question: str) -> dict:
-    opinions = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(MEMBERS)) as pool:
-        futures = {pool.submit(ask_member, m, question): m for m in MEMBERS}
-        for future in concurrent.futures.as_completed(futures):
-            model = futures[future]
-            opinions[model] = future.result()
-            color = COLORS.get(model, "")
-            print(f"{color}[{model}]{RESET}\n{opinions[model]}\n")
-    return opinions
-
-
-def synthesize(question: str, opinions: dict) -> str:
+def synthesize_node(state: dict) -> dict:
+    print(f"{CHAIR_COLOR}[chair: {CHAIR}] synthesizing...{RESET}\n")
     transcript = "\n\n".join(
-        f"--- {model} ---\n{answer}" for model, answer in opinions.items()
+        f"--- {branch.removeprefix('ask::')} ---\n{answer}"
+        for branch, answer in state["branch_results"].items()
     )
     chair_prompt = (
-        f"A user asked the following question:\n\n{question}\n\n"
+        f"A user asked the following question:\n\n{state['question']}\n\n"
         f"Council members answered independently:\n\n{transcript}\n\n"
         "As chair, synthesize a final answer. Note where the council agrees, "
         "call out any real disagreements and why they might differ, then give "
         "your best consensus recommendation. Be concise."
     )
     try:
-        response = ollama.chat(
-            model=CHAIR,
-            messages=[{"role": "user", "content": chair_prompt}],
-        )
-        return response.message.content or "(empty response)"
+        response = ollama.chat(model=CHAIR, messages=[{"role": "user", "content": chair_prompt}])
+        verdict = response.message.content or "(empty response)"
     except Exception as e:
-        return f"(error: {e})"
-
-
-def run_council(question: str) -> None:
-    print(f"\nConvening council on: {question}\n")
-    opinions = gather_opinions(question)
-
-    print(f"{CHAIR_COLOR}[chair: {CHAIR}] synthesizing...{RESET}\n")
-    verdict = synthesize(question, opinions)
+        verdict = f"(error: {e})"
     print(f"{CHAIR_COLOR}[verdict]{RESET}\n{verdict}\n")
+    return {"verdict": verdict}
+
+
+def build_council_graph() -> Graph:
+    graph = Graph()
+    graph.add_node("start", lambda state: None)
+    for model in MEMBERS:
+        graph.add_node(f"ask::{model}", make_ask_node(model))
+    graph.add_node("synthesize", synthesize_node)
+
+    graph.set_entry("start")
+    graph.add_fan_out("start", [f"ask::{m}" for m in MEMBERS], "synthesize")
+    graph.add_edge("synthesize", END)
+    return graph
+
+
+def run_council(question: str) -> str:
+    print(f"\nConvening council on: {question}\n")
+    graph = build_council_graph()
+    final_state = graph.run({"question": question})
+    return final_state["verdict"]
 
 
 def main():

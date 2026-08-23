@@ -8,6 +8,8 @@ import datetime
 import os
 import ollama
 
+from graph_engine import Graph, END
+
 MODEL = "hermes3"
 MAX_FAKE_TOOL_CALL_RETRIES = 2
 
@@ -231,64 +233,112 @@ def call_tool(name: str, args: dict) -> str:
     return result
 
 
-def agent_loop(user_input: str, max_iterations: int = 10) -> str:
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful AI assistant with access to tools. "
-                "Use tools when needed to answer the user's request. "
-                "You also have a skill hub: call list_skills to see what's "
-                "available, and use_skill(name) to load a skill's instructions "
-                "before doing a task it covers (e.g. summarizing, reviewing code, "
-                "or running a risky shell command). Prefer loading a matching "
-                "skill over guessing at the right approach. "
-                "Think step by step and call tools as required."
-            )
-        },
-        {"role": "user", "content": user_input}
-    ]
-    fake_tool_call_retries = 0
+def build_agent_graph(max_iterations: int) -> Graph:
+    """call_model <-> execute_tools/retry_fake, gated by an iteration cap.
 
-    for i in range(max_iterations):
-        print(f"\n[iteration {i+1}]")
-        response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
+    Mirrors the original for-loop: check_iterations decides, before each
+    model call, whether the cap is reached; call_model then routes to tool
+    execution, a fake-tool-call retry, or END based on the response.
+    """
+
+    def call_model(state: dict) -> None:
+        state["iteration"] += 1
+        print(f"\n[iteration {state['iteration']}]")
+        response = ollama.chat(model=MODEL, messages=state["messages"], tools=TOOLS)
         msg = response.message
+        state["messages"].append({
+            "role": "assistant", "content": msg.content or "", "tool_calls": msg.tool_calls
+        })
+        state["last_content"] = msg.content
+        state["last_tool_calls"] = msg.tool_calls
 
-        # Add assistant response to history
-        messages.append({"role": "assistant", "content": msg.content or "", "tool_calls": msg.tool_calls})
+    def route_after_model(state: dict) -> str:
+        if state["last_tool_calls"]:
+            return "tools"
+        if looks_like_fake_tool_call(state["last_content"]):
+            if state["fake_tool_call_retries"] < MAX_FAKE_TOOL_CALL_RETRIES:
+                return "retry"
+            print(f"  [warn] still getting fake tool calls after "
+                  f"{MAX_FAKE_TOOL_CALL_RETRIES} retries, giving up and "
+                  f"returning raw text")
+        state["answer"] = state["last_content"] or "(no response)"
+        return "end"
 
-        if not msg.tool_calls:
-            if looks_like_fake_tool_call(msg.content) and fake_tool_call_retries < MAX_FAKE_TOOL_CALL_RETRIES:
-                fake_tool_call_retries += 1
-                print(f"  [warn] tool call written as text, asking model to retry "
-                      f"({fake_tool_call_retries}/{MAX_FAKE_TOOL_CALL_RETRIES})")
-                messages.append({
-                    "role": "user",
-                    "content": (
-                        "That was a tool call written as text instead of an actual tool "
-                        "call. Call the tool for real using the tool-calling interface."
-                    )
-                })
-                continue
-            if looks_like_fake_tool_call(msg.content):
-                print(f"  [warn] still getting fake tool calls after "
-                      f"{MAX_FAKE_TOOL_CALL_RETRIES} retries, giving up and "
-                      f"returning raw text")
-            return msg.content or "(no response)"
+    def retry_fake(state: dict) -> None:
+        state["fake_tool_call_retries"] += 1
+        print(f"  [warn] tool call written as text, asking model to retry "
+              f"({state['fake_tool_call_retries']}/{MAX_FAKE_TOOL_CALL_RETRIES})")
+        state["messages"].append({
+            "role": "user",
+            "content": (
+                "That was a tool call written as text instead of an actual tool "
+                "call. Call the tool for real using the tool-calling interface."
+            )
+        })
 
-        # Execute each tool call
-        for tc in msg.tool_calls:
+    def execute_tools(state: dict) -> None:
+        for tc in state["last_tool_calls"]:
             name = tc.function.name
-            args = tc.function.arguments if isinstance(tc.function.arguments, dict) else json.loads(tc.function.arguments)
+            args = (tc.function.arguments if isinstance(tc.function.arguments, dict)
+                    else json.loads(tc.function.arguments))
             result = call_tool(name, args)
-            messages.append({
-                "role": "tool",
-                "content": result,
-                "name": name
-            })
+            state["messages"].append({"role": "tool", "content": result, "name": name})
 
-    return "Max iterations reached."
+    def check_max_iterations(state: dict) -> str:
+        if state["iteration"] >= max_iterations:
+            state["answer"] = "Max iterations reached."
+            return "end"
+        return "continue"
+
+    graph = Graph()
+    graph.add_node("check_iterations", lambda state: None)
+    graph.add_node("call_model", call_model)
+    graph.add_node("execute_tools", execute_tools)
+    graph.add_node("retry_fake", retry_fake)
+
+    graph.set_entry("check_iterations")
+    graph.add_conditional_edges("check_iterations", check_max_iterations, {
+        "continue": "call_model",
+        "end": END,
+    })
+    graph.add_conditional_edges("call_model", route_after_model, {
+        "tools": "execute_tools",
+        "retry": "retry_fake",
+        "end": END,
+    })
+    graph.add_edge("execute_tools", "check_iterations")
+    graph.add_edge("retry_fake", "check_iterations")
+
+    return graph
+
+
+def agent_loop(user_input: str, max_iterations: int = 10) -> str:
+    state = {
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a helpful AI assistant with access to tools. "
+                    "Use tools when needed to answer the user's request. "
+                    "You also have a skill hub: call list_skills to see what's "
+                    "available, and use_skill(name) to load a skill's instructions "
+                    "before doing a task it covers (e.g. summarizing, reviewing code, "
+                    "or running a risky shell command). Prefer loading a matching "
+                    "skill over guessing at the right approach. "
+                    "Think step by step and call tools as required."
+                )
+            },
+            {"role": "user", "content": user_input}
+        ],
+        "iteration": 0,
+        "fake_tool_call_retries": 0,
+        "last_content": None,
+        "last_tool_calls": None,
+        "answer": None,
+    }
+    graph = build_agent_graph(max_iterations)
+    final_state = graph.run(state)
+    return final_state["answer"]
 
 
 def main():
