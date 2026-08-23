@@ -3,8 +3,8 @@
 
 A Graph is nodes (state -> state-update) connected by edges. Edges can be
 plain, conditional (branch on a router function), or fan-out (run several
-nodes in parallel on copies of the state, then join into one node with the
-per-branch results collected).
+nodes in parallel on deep copies of the state, then join into one node with
+the per-branch results collected).
 
 State is a single dict threaded through the whole run. A regular node
 returns a dict of updates that gets merged into that state. A fan-out
@@ -14,6 +14,7 @@ merging into shared state directly would race.
 """
 
 import concurrent.futures
+import copy
 
 END = "__END__"
 
@@ -96,7 +97,7 @@ class Graph:
         results = {}
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers or len(branches)) as pool:
             futures = {
-                pool.submit(self._nodes[b], dict(state)): b for b in branches
+                pool.submit(self._nodes[b], copy.deepcopy(state)): b for b in branches
             }
             for future in concurrent.futures.as_completed(futures):
                 branch = futures[future]
