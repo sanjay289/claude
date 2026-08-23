@@ -1,5 +1,9 @@
 # claude
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Built with Ollama](https://img.shields.io/badge/built%20with-Ollama-000000.svg)](https://ollama.com)
+
 Small Ollama-backed agent experiments, built on a shared dependency-free graph engine.
 
 ## Components
