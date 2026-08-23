@@ -1,6 +1,7 @@
 # claude
 
 [![tests](https://github.com/sanjay289/claude/actions/workflows/tests.yml/badge.svg)](https://github.com/sanjay289/claude/actions/workflows/tests.yml)
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/sanjay289/claude/master/.github/badges/coverage.json)](https://github.com/sanjay289/claude/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Built with Ollama](https://img.shields.io/badge/built%20with-Ollama-000000.svg)](https://ollama.com)

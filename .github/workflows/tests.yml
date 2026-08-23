@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, master]
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,7 +24,30 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt coverage
 
-      - name: Run tests
-        run: python3 -m unittest discover tests -v
+      - name: Run tests with coverage
+        run: coverage run -m unittest discover tests -v
+
+      - name: Coverage report
+        run: coverage report -m
+
+      - name: Generate coverage badge data
+        if: matrix.python-version == '3.13' && github.event_name == 'push'
+        run: |
+          pct=$(coverage report --format=total)
+          if [ "$pct" -ge 80 ]; then color=brightgreen
+          elif [ "$pct" -ge 60 ]; then color=yellow
+          else color=red
+          fi
+          mkdir -p .github/badges
+          cat > .github/badges/coverage.json <<JSON
+          {"schemaVersion": 1, "label": "coverage", "message": "${pct}%", "color": "${color}"}
+          JSON
+
+      - name: Commit coverage badge data
+        if: matrix.python-version == '3.13' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet .github/badges/coverage.json || (git add .github/badges/coverage.json && git commit -m "Update coverage badge [skip ci]" && git push)
