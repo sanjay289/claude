@@ -6,6 +6,7 @@ no server, no model pulled. Run with: python3 -m unittest discover tests
 """
 
 import os
+import runpy
 import sys
 import tempfile
 import unittest
@@ -265,6 +266,12 @@ class MainTests(unittest.TestCase):
              patch.object(ha, "agent_loop", return_value="answer") as agent_loop_mock:
             ha.main()
         agent_loop_mock.assert_called_once_with("hello")
+
+
+class MainGuardTests(unittest.TestCase):
+    def test_running_as_script_calls_main(self):
+        with patch("builtins.input", return_value="quit"):
+            runpy.run_module("hermes_agent", run_name="__main__")
 
 
 if __name__ == "__main__":
