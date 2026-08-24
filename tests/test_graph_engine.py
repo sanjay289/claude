@@ -4,6 +4,8 @@
 Run with: python3 -m unittest discover tests
 """
 
+import contextlib
+import io
 import os
 import sys
 import unittest
@@ -149,6 +151,21 @@ class ErrorHandlingTests(unittest.TestCase):
         graph = Graph().add_node("a", lambda state: None).set_entry("a")
         with self.assertRaises(ValueError):
             graph.run({})
+
+    def test_unknown_edge_kind_raises(self):
+        graph = Graph().add_node("a", lambda state: None).set_entry("a")
+        graph._edges["a"] = ("bogus_kind",)
+        with self.assertRaises(ValueError):
+            graph.run({})
+
+
+class VerboseModeTests(unittest.TestCase):
+    def test_verbose_prints_node_names(self):
+        graph = Graph().add_node("a", lambda state: None).set_entry("a").add_edge("a", END)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            graph.run({}, verbose=True)
+        self.assertIn("[graph] -> a", out.getvalue())
 
 
 if __name__ == "__main__":
