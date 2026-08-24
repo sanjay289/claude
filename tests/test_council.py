@@ -132,5 +132,31 @@ class EnsureServerRunningTests(unittest.TestCase):
                 council.ensure_server_running(timeout=0.05)
 
 
+class MainTests(unittest.TestCase):
+    def setUp(self):
+        patcher = patch.object(council, "ensure_server_running")
+        self.ensure_server_running = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_quit_exits_immediately(self):
+        with patch("builtins.input", return_value="quit"):
+            council.main()
+        self.ensure_server_running.assert_called_once()
+
+    def test_empty_input_is_skipped_then_quit(self):
+        with patch("builtins.input", side_effect=["", "exit"]):
+            council.main()
+
+    def test_eof_breaks_loop(self):
+        with patch("builtins.input", side_effect=EOFError):
+            council.main()
+
+    def test_processes_question_via_run_council(self):
+        with patch("builtins.input", side_effect=["what's best?", "q"]), \
+             patch.object(council, "run_council") as run_council_mock:
+            council.main()
+        run_council_mock.assert_called_once_with("what's best?")
+
+
 if __name__ == "__main__":
     unittest.main()
