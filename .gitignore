@@ -1,6 +1,8 @@
 __pycache__/
 *.pyc
 .coverage
+agent_memory/
+langgraph_checkpoints.sqlite
 y
 *.env
 *secrets*
