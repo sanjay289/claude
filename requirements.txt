@@ -1,1 +1,2 @@
 ollama
+langgraph; python_version >= "3.10"

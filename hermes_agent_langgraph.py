@@ -19,6 +19,8 @@ mapping instead of going straight to END.
 Run: python3 hermes_agent_langgraph.py
 """
 
+from __future__ import annotations
+
 import json
 from typing import TypedDict
 

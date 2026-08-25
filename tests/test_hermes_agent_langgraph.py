@@ -9,6 +9,10 @@ agent_loop on LangGraph, and main().
 
 Ollama is stubbed out with fake chat responses so these run offline — no
 server, no model pulled. Run with: python3 -m unittest discover tests
+
+langgraph requires Python >=3.10, so this whole module is skipped on older
+interpreters (matching requirements.txt's environment marker on the
+langgraph line) rather than failing to import.
 """
 
 import os
@@ -19,7 +23,11 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import hermes_agent_langgraph as hlg
+if sys.version_info < (3, 10):
+    def setUpModule():
+        raise unittest.SkipTest("hermes_agent_langgraph requires langgraph, which needs Python 3.10+")
+else:
+    import hermes_agent_langgraph as hlg
 
 
 class FakeFn:
