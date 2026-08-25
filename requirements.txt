@@ -1,2 +1,3 @@
 ollama
 langgraph; python_version >= "3.10"
+langchain-ollama; python_version >= "3.10"
