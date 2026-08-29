@@ -6,3 +6,9 @@ langgraph_checkpoints.sqlite
 y
 *.env
 *secrets*
+
+deep_learning/cifar_data/
+deep_learning/mnist_data/
+deep_learning/*.pt
+deep_learning/*.log
+deep_learning/*.png
