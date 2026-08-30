@@ -1,0 +1,93 @@
+import sys
+import time
+import torch
+import torch.nn as nn
+import torchvision
+import torchvision.transforms as transforms
+
+torch.manual_seed(42)
+
+# random crop (with padding so the crop can still see the full image) + hflip
+# give the model shifted/mirrored views of each image every epoch, so it
+# can't just memorize exact pixel positions -- this is what step17-22 lacked
+train_transform = transforms.Compose([
+    transforms.RandomCrop(32, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+])
+eval_transform = transforms.ToTensor()
+
+train_data = torchvision.datasets.CIFAR10(root="./cifar_data", train=True, download=True, transform=train_transform)
+train_eval_data = torchvision.datasets.CIFAR10(root="./cifar_data", train=True, download=True, transform=eval_transform)
+test_data = torchvision.datasets.CIFAR10(root="./cifar_data", train=False, download=True, transform=eval_transform)
+
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=64, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=1000)
+train_eval_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(train_eval_data, range(5000)), batch_size=1000)
+
+# step22's dropout+lowlr architecture + BatchNorm2d after every conv, which
+# normalizes each layer's activations and should smooth out the epoch-to-epoch
+# loss/accuracy swings seen in step20-22
+model = nn.Sequential(
+    nn.Conv2d(3, 32, kernel_size=3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
+    nn.MaxPool2d(2), nn.Dropout(0.25),
+
+    nn.Conv2d(32, 64, kernel_size=3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+    nn.MaxPool2d(2), nn.Dropout(0.25),
+
+    nn.Conv2d(64, 64, kernel_size=3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+    nn.MaxPool2d(2), nn.Dropout(0.25),
+
+    nn.Flatten(),
+    nn.Dropout(0.5),
+    nn.Linear(64 * 4 * 4, 10),
+)
+
+loss_fn = nn.CrossEntropyLoss()
+BASE_LR = 3e-4  # same lowered rate as step21/step22
+optimizer = torch.optim.Adam(model.parameters(), lr=BASE_LR)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.5)
+
+
+def accuracy(loader):
+    model.eval()  # dropout off, batchnorm uses running stats
+    correct, total = 0, 0
+    with torch.no_grad():
+        for images, labels in loader:
+            preds = model(images)
+            correct += (preds.argmax(dim=1) == labels).sum().item()
+            total += labels.size(0)
+    model.train()
+    return 100 * correct / total
+
+
+N_EPOCHS = int(sys.argv[1]) if len(sys.argv) > 1 else 15
+print(f"CNN parameters: {sum(p.numel() for p in model.parameters()):,}  base_lr={BASE_LR}", flush=True)
+
+best_acc, best_epoch = 0.0, -1
+for epoch in range(N_EPOCHS):
+    model.train()
+    t0 = time.time()
+    for images, labels in train_loader:
+        preds = model(images)
+        loss = loss_fn(preds, labels)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    scheduler.step()
+    epoch_time = time.time() - t0
+
+    train_acc = accuracy(train_eval_loader)
+    test_acc = accuracy(test_loader)
+    gap = train_acc - test_acc
+
+    if test_acc > best_acc:
+        best_acc, best_epoch = test_acc, epoch
+        torch.save(model.state_dict(), "best_cnn_cifar_augment_bn.pt")
+
+    lr_now = optimizer.param_groups[0]["lr"]
+    print(f"epoch {epoch:2d}  lr={lr_now:.6f}  loss={loss.item():.4f}  "
+          f"train acc={train_acc:.2f}%  test acc={test_acc:.2f}%  gap={gap:5.2f}%  ({epoch_time:.1f}s)", flush=True)
+
+print(f"best: epoch {best_epoch}  test accuracy={best_acc:.2f}%", flush=True)
+print("DONE", flush=True)
