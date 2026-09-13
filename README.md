@@ -10,6 +10,14 @@
 
 Small Ollama-backed agent experiments, built on a shared dependency-free graph engine.
 
+![council.py: a real local run, one model split across member and chair roles](council_demo.gif)
+
+`council.py` above, deliberating with a single local `llama3.2:3b` model
+(fan-out to a member, then a separate chair pass to synthesize the verdict —
+see [Components](#components) below). With multiple member models
+configured it fans out to all of them in parallel and the chair can note
+real disagreement between them.
+
 ## Featured: [`deep_learning/`](deep_learning/)
 
 A from-scratch scalar autograd engine, built up step by step into CNNs
