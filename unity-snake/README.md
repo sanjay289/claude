@@ -4,6 +4,26 @@ A minimal, classic Snake game for the Unity engine. The entire game lives in one
 script — `Assets/Scripts/SnakeGame.cs` — which builds its own camera and objects
 at runtime, so there is no scene to wire up.
 
+```
+Score: 7
+
++--------------------+
+|                    |
+|                    |
+|        ooo@        |
+|                    |
+|                    |
+|               *    |
+|                    |
+|                    |
+|                    |
+|                    |
+|                    |
++--------------------+
+```
+*(illustrative ASCII mockup, not an in-engine screenshot — the real game
+renders as 2D quads in Unity. `@` is the head, `o` the body, `*` the food.)*
+
 ## Requirements
 
 Unity 2020.3 or newer (uses the built-in `Input` manager and `OnGUI`, no
