@@ -1,0 +1,20 @@
+/data/data/com.termux/files/usr/lib/python3.14/site-packages/torchvision/datasets/cifar.py:83: VisibleDeprecationWarning: dtype(): align should be passed as Python or NumPy boolean but got `align=0`. Did you mean to pass a tuple to create a subarray type? (Deprecated NumPy 2.4)
+  entry = pickle.load(f, encoding="latin1")
+CNN parameters: 66,570
+epoch  0  lr=0.001000  loss=1.3335  train acc=48.08%  test acc=46.96%  gap= 1.12%  (509.7s)
+epoch  1  lr=0.001000  loss=1.2440  train acc=51.00%  test acc=52.21%  gap=-1.21%  (438.6s)
+epoch  2  lr=0.001000  loss=1.5322  train acc=53.14%  test acc=52.14%  gap= 1.00%  (393.5s)
+epoch  3  lr=0.000500  loss=1.5862  train acc=58.42%  test acc=56.19%  gap= 2.23%  (302.7s)
+epoch  4  lr=0.000500  loss=1.2077  train acc=60.18%  test acc=56.46%  gap= 3.72%  (279.6s)
+epoch  5  lr=0.000500  loss=1.4511  train acc=57.50%  test acc=55.07%  gap= 2.43%  (272.8s)
+epoch  6  lr=0.000500  loss=1.9752  train acc=58.14%  test acc=55.89%  gap= 2.25%  (266.7s)
+epoch  7  lr=0.000250  loss=2.0259  train acc=56.32%  test acc=55.73%  gap= 0.59%  (287.1s)
+epoch  8  lr=0.000250  loss=1.5497  train acc=58.60%  test acc=54.10%  gap= 4.50%  (283.0s)
+epoch  9  lr=0.000250  loss=1.4513  train acc=57.32%  test acc=56.01%  gap= 1.31%  (269.7s)
+epoch 10  lr=0.000250  loss=1.8816  train acc=55.20%  test acc=53.23%  gap= 1.97%  (270.0s)
+epoch 11  lr=0.000125  loss=1.3281  train acc=57.46%  test acc=53.06%  gap= 4.40%  (272.1s)
+epoch 12  lr=0.000125  loss=1.7226  train acc=53.92%  test acc=51.59%  gap= 2.33%  (505.5s)
+epoch 13  lr=0.000125  loss=1.6494  train acc=54.72%  test acc=49.81%  gap= 4.91%  (260.8s)
+epoch 14  lr=0.000125  loss=1.8913  train acc=50.92%  test acc=50.45%  gap= 0.47%  (269.3s)
+best: epoch 4  test accuracy=56.46%
+DONE

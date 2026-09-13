@@ -5,6 +5,13 @@ convolutional networks on CIFAR-10. Each `stepN_*.py` is a single self-contained
 script that changes one thing from the step before it; the `.log` files are the
 runs those scripts produced on this device.
 
+![CIFAR-10 arc: test accuracy per epoch across steps 16-23](cifar_arc_comparison.png)
+
+Six CNN/MLP variants, one knob changed at a time — the plot above is
+`plot_arc.py` reading the `.log` files below directly, so it always reflects
+the runs actually committed to this repo. See ["What the arc taught"](#what-the-arc-taught)
+for what each curve means.
+
 ## The earlier steps (1–15)
 
 | Steps | What they build |
@@ -78,6 +85,7 @@ gamma=0.5)`, 15 epochs (`step16` and `step17` were run for 6).
 
 - `best_cnn_cifar*.pt` — the best checkpoint from each CNN run, named per step.
 - `conv_demo.png`, `misclassified.png` — figures from `step9` / `step8`.
+- `cifar_arc_comparison.png` — the steps 16–23 comparison chart, produced by `plot_arc.py`.
 - `cifar_data/`, `mnist_data/` — downloaded datasets (git-ignored).
 
 ## Running
@@ -85,6 +93,13 @@ gamma=0.5)`, 15 epochs (`step16` and `step17` were run for 6).
 ```bash
 python3 step23_cifar_cnn_augment_bn.py        # 15 epochs (default)
 python3 step23_cifar_cnn_augment_bn.py 20     # optional epoch-count override
+```
+
+Regenerate the comparison chart from the existing `.log` files (no training
+required):
+
+```bash
+python3 plot_arc.py
 ```
 
 The from-scratch steps have tiny standalone checks:

@@ -10,6 +10,18 @@
 
 Small Ollama-backed agent experiments, built on a shared dependency-free graph engine.
 
+## Featured: [`deep_learning/`](deep_learning/)
+
+A from-scratch scalar autograd engine, built up step by step into CNNs
+trained on MNIST and CIFAR-10 — 23 self-contained scripts, each changing one
+thing from the last.
+
+[![CIFAR-10 arc: test accuracy per epoch across steps 16-23](deep_learning/cifar_arc_comparison.png)](deep_learning/README.md)
+
+See [`deep_learning/README.md`](deep_learning/README.md) for the full
+step-by-step writeup, including what each change to the CIFAR-10 training
+recipe actually did to accuracy and overfitting.
+
 ## Components
 
 - **`graph_engine.py`** — a minimal node/edge graph runner for agent workflows.
