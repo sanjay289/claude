@@ -23,6 +23,8 @@ public class SnakeGame : MonoBehaviour
     static readonly Color SnakeColor = new Color(0.40f, 0.85f, 0.40f);
     static readonly Color FoodColor = new Color(0.90f, 0.30f, 0.30f);
 
+    const string HighScoreKey = "SnakeHighScore";
+
     readonly List<Vector2Int> cells = new List<Vector2Int>();   // [0] is the head
     readonly List<Transform> segments = new List<Transform>();  // reusable quad pool
 
@@ -33,10 +35,12 @@ public class SnakeGame : MonoBehaviour
     Vector2Int foodCell;
     float stepTimer;
     int score;
+    int highScore;
     bool gameOver;
 
     void Start()
     {
+        highScore = PlayerPrefs.GetInt(HighScoreKey, 0);
         SetupCamera();
         NewGame();
     }
@@ -124,6 +128,12 @@ public class SnakeGame : MonoBehaviour
         if (head == foodCell)
         {
             score++;
+            if (score > highScore)
+            {
+                highScore = score;
+                PlayerPrefs.SetInt(HighScoreKey, highScore);
+                PlayerPrefs.Save();
+            }
             PlaceFood();
         }
         else
@@ -187,7 +197,8 @@ public class SnakeGame : MonoBehaviour
     {
         GUI.color = Color.white;
         GUI.Label(new Rect(10, 10, 200, 20), "Score: " + score);
+        GUI.Label(new Rect(10, 30, 200, 20), "High Score: " + highScore);
         if (gameOver)
-            GUI.Label(new Rect(10, 30, 320, 20), "Game Over — press Space to restart");
+            GUI.Label(new Rect(10, 50, 320, 20), "Game Over — press Space to restart");
     }
 }

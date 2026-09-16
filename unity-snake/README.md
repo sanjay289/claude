@@ -62,8 +62,10 @@ Exposed on the component in the Inspector:
 - `segments` is a pool of `Quad` transforms re-positioned to match `cells` each
   step, so no objects are created or destroyed during normal play.
 - Food is placed on a uniformly random free cell; filling the board is a win.
+- High score is saved via `PlayerPrefs` (key `SnakeHighScore`) and persists across
+  restarts and sessions.
 
 ## Not included
 
-Sound, menus, high-score persistence, touch/gamepad input. Add them as separate
-components so this file stays the small readable core.
+Sound, menus, touch/gamepad input. Add them as separate components so this file
+stays the small readable core.
