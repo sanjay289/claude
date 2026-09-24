@@ -248,6 +248,43 @@ class CallToolTests(unittest.TestCase):
         self.assertRegex(result, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
 
 
+class ErrorLoggingTests(unittest.TestCase):
+    def test_run_shell_timeout_is_logged(self):
+        with patch.object(
+            ha.subprocess, "run",
+            side_effect=ha.subprocess.TimeoutExpired(cmd="x", timeout=30),
+        ), self.assertLogs(ha.logger, "ERROR") as logs:
+            ha.run_shell("sleep 100")
+        self.assertIn("timed out", logs.output[0])
+
+    def test_run_shell_exception_is_logged(self):
+        with patch.object(
+            ha.subprocess, "run", side_effect=RuntimeError("boom"),
+        ), self.assertLogs(ha.logger, "ERROR") as logs:
+            ha.run_shell("whatever")
+        self.assertIn("boom", logs.output[0])
+
+    def test_read_file_error_is_logged(self):
+        with self.assertLogs(ha.logger, "ERROR") as logs:
+            ha.read_file("/nonexistent/path/xyz.txt")
+        self.assertIn("/nonexistent/path/xyz.txt", logs.output[0])
+
+    def test_write_file_error_is_logged(self):
+        with self.assertLogs(ha.logger, "ERROR") as logs:
+            ha.write_file("/nonexistent_dir_xyz/out.txt", "hello")
+        self.assertIn("/nonexistent_dir_xyz/out.txt", logs.output[0])
+
+    def test_list_dir_error_is_logged(self):
+        with self.assertLogs(ha.logger, "ERROR") as logs:
+            ha.list_dir("/nonexistent/path/xyz")
+        self.assertIn("/nonexistent/path/xyz", logs.output[0])
+
+    def test_unknown_tool_is_logged(self):
+        with self.assertLogs(ha.logger, "ERROR") as logs:
+            ha.call_tool("nonexistent_tool", {})
+        self.assertIn("nonexistent_tool", logs.output[0])
+
+
 class MainTests(unittest.TestCase):
     def test_quit_exits_immediately(self):
         with patch("builtins.input", return_value="quit"):

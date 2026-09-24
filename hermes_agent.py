@@ -2,6 +2,7 @@
 """Hermes agent loop with tool execution via Ollama."""
 
 import json
+import logging
 import re
 import subprocess
 import datetime
@@ -9,6 +10,8 @@ import os
 import ollama
 
 from graph_engine import Graph, END
+
+logger = logging.getLogger(__name__)
 
 MODEL = "hermes3"
 MAX_FAKE_TOOL_CALL_RETRIES = 2
@@ -143,8 +146,10 @@ def run_shell(command: str) -> str:
         output = result.stdout + result.stderr
         return output.strip() or "(no output)"
     except subprocess.TimeoutExpired:
+        logger.error("run_shell timed out: %s", command)
         return "Error: command timed out"
     except Exception as e:
+        logger.exception("run_shell failed: %s: %s", command, e)
         return f"Error: {e}"
 
 
@@ -153,6 +158,7 @@ def read_file(path: str) -> str:
         with open(os.path.expanduser(path), "r") as f:
             return f.read()
     except Exception as e:
+        logger.error("read_file failed for %s: %s", path, e)
         return f"Error: {e}"
 
 
@@ -162,6 +168,7 @@ def write_file(path: str, content: str) -> str:
             f.write(content)
         return f"Written to {path}"
     except Exception as e:
+        logger.error("write_file failed for %s: %s", path, e)
         return f"Error: {e}"
 
 
@@ -175,6 +182,7 @@ def list_dir(path: str = '.') -> str:
         entries = os.listdir(os.path.expanduser(path))
         return "\n".join(entries)
     except Exception as e:
+        logger.error("list_dir failed for %s: %s", path, e)
         return f"Error: {e}"
 
 
@@ -226,6 +234,7 @@ def looks_like_fake_tool_call(content: str) -> bool:
 def call_tool(name: str, args: dict) -> str:
     fn = TOOL_MAP.get(name)
     if not fn:
+        logger.error("Model requested unknown tool: %s", name)
         return f"Unknown tool: {name}"
     print(f"\n  [tool] {name}({json.dumps(args)})")
     result = fn(**args)
@@ -342,6 +351,10 @@ def agent_loop(user_input: str, max_iterations: int = 10) -> str:
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     print(f"Hermes Agent — model: {MODEL}")
     print("Type 'quit' to exit\n")
 
