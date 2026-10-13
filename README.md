@@ -65,12 +65,19 @@ recipe actually did to accuracy and overfitting.
 - **`langgraph_demo.py`** — a LangGraph agent with planning, sub-agent
   delegation, and memory, working through a cache-eviction comparison task.
 
+- **`brain.py`** — capture and search for a "second brain": a plain folder
+  of Obsidian-compatible markdown notes (`Inbox/` plus PARA folders) at
+  `$BRAIN_VAULT`, defaulting to Android shared storage so the Obsidian app
+  can open it. `brain add TEXT` appends a timestamped line to today's
+  `Inbox/` note; `brain find TERM` searches with ripgrep and opens the
+  match you pick in fzf in `$EDITOR`. No model involved.
+
 - **`skills/`** — markdown skill files (`code-review.md`, `shell-safety.md`,
   `summarize.md`) that `hermes_agent.py` can load on demand via its
   `list_skills` / `use_skill` tools.
 
 - **`tests/`** — unit tests for the graph engine, both agents, the council,
-  and the LangGraph demo, with model calls stubbed out so they run offline
+  the LangGraph demo, and `brain.py`, with model calls stubbed out so they run offline
   (no server, no model pulled).
 
 - **[`unity-snake/`](unity-snake/)** — a minimal Snake game for Unity, in a
@@ -84,6 +91,9 @@ recipe actually did to accuracy and overfitting.
   pulled or available as cloud models
 - Python packages: `pip install -r requirements.txt` (the LangGraph files
   need Python 3.10+; their tests are skipped on older versions)
+- For `brain.py`: [ripgrep](https://github.com/BurntSushi/ripgrep) and
+  [fzf](https://github.com/junegunn/fzf) (its search tests are skipped
+  without ripgrep)
 - For `deep_learning/`: [PyTorch](https://pytorch.org) and torchvision
   (`pip install torch torchvision`)
 
@@ -94,6 +104,7 @@ python3 hermes_agent.py   # interactive tool-using chat agent
 python3 council.py        # interactive multi-model council
 python3 hermes_agent_langgraph.py   # the same agent, on LangGraph
 python3 langgraph_demo.py           # LangGraph planning/sub-agent demo
+python3 brain.py add TEXT | find TERM   # second-brain capture / search
 ```
 
 ## Testing
