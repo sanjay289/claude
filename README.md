@@ -8,7 +8,8 @@
 [![Contributing](https://img.shields.io/badge/contributing-guide-blue.svg)](CONTRIBUTING.md)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-Small Ollama-backed agent experiments, built on a shared dependency-free graph engine.
+Experiments in agents, deep learning, and games — mostly Ollama-backed agents
+built on a shared dependency-free graph engine.
 
 ![council.py: a real local run, one model split across member and chair roles](council_demo.gif)
 
@@ -52,12 +53,23 @@ recipe actually did to accuracy and overfitting.
   fan-out), then a separate chair model reads every answer and synthesizes
   a verdict, noting agreement and disagreement across the council.
 
+- **`hermes_agent_langgraph.py`** — `hermes_agent.py` ported onto
+  [LangGraph](https://github.com/langchain-ai/langgraph): same tools and same
+  graph shape, with only the graph itself rebuilt on LangGraph.
+
+- **`langgraph_demo.py`** — a LangGraph agent with planning, sub-agent
+  delegation, and memory, working through a cache-eviction comparison task.
+
 - **`skills/`** — markdown skill files (`code-review.md`, `shell-safety.md`,
   `summarize.md`) that `hermes_agent.py` can load on demand via its
   `list_skills` / `use_skill` tools.
 
-- **`tests/`** — unit tests for the agent loop, with `ollama.chat` stubbed
-  out so they run offline (no server, no model pulled).
+- **`tests/`** — unit tests for the graph engine, both agents, the council,
+  and the LangGraph demo, with model calls stubbed out so they run offline
+  (no server, no model pulled).
+
+- **[`unity-snake/`](unity-snake/)** — a minimal Snake game for Unity, in a
+  single script that builds its own scene at runtime.
 
 ## Requirements
 
@@ -65,13 +77,18 @@ recipe actually did to accuracy and overfitting.
 - [Ollama](https://ollama.com) running locally, with the models referenced
   in `hermes_agent.py` (`hermes3`) and `council.py` (`MEMBERS`, `CHAIR`)
   pulled or available as cloud models
-- The `ollama` Python package (`pip install ollama`)
+- Python packages: `pip install -r requirements.txt` (the LangGraph files
+  need Python 3.10+; their tests are skipped on older versions)
+- For `deep_learning/`: [PyTorch](https://pytorch.org) and torchvision
+  (`pip install torch torchvision`)
 
 ## Running
 
 ```bash
 python3 hermes_agent.py   # interactive tool-using chat agent
 python3 council.py        # interactive multi-model council
+python3 hermes_agent_langgraph.py   # the same agent, on LangGraph
+python3 langgraph_demo.py           # LangGraph planning/sub-agent demo
 ```
 
 ## Testing
