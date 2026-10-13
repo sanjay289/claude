@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""LangGraph version of deep_agent_demo.py — same task (compare LRU/LFU/
+"""LangGraph version of deep_agent_demo.py, an earlier hand-rolled agent
+that isn't included in this repo — same task (compare LRU/LFU/
 write-through cache eviction), same shape (plan + sub-agent delegation +
 memory), but built on langgraph instead of a hand-rolled loop. Comments
 call out what LangGraph gives you for free vs. what deep_agent_demo.py
-hand-rolls.
+hand-rolled.
 
 Run: python3 langgraph_demo.py
 """
