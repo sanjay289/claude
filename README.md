@@ -46,7 +46,9 @@ recipe actually did to accuracy and overfitting.
   interface, loop until it produces a final answer or hits the iteration
   cap. Tools include shell execution, file read/write, and a skill hub
   (`skills/*.md`) the model can discover and load before doing a task a
-  skill covers.
+  skill covers. The model is set by `MODEL = "hermes3"` at the top of the
+  file (the LangGraph port imports it too); point it at any tool-calling
+  model you've pulled if `hermes3` isn't available.
 
 - **`council.py`** — parallel multi-model deliberation. Several member
   models answer the same question independently and concurrently (a
