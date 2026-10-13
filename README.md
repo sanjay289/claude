@@ -52,6 +52,9 @@ recipe actually did to accuracy and overfitting.
   models answer the same question independently and concurrently (a
   fan-out), then a separate chair model reads every answer and synthesizes
   a verdict, noting agreement and disagreement across the council.
+  The defaults (`MEMBERS` and `CHAIR` at the top of the file) are mostly
+  Ollama cloud models — only `llama3.2:3b` runs locally — so either sign in
+  to Ollama for cloud access or edit those two lists to models you've pulled.
 
 - **`hermes_agent_langgraph.py`** — `hermes_agent.py` ported onto
   [LangGraph](https://github.com/langchain-ai/langgraph): same tools and same
