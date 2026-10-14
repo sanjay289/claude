@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Tests for brain.py's capture and search.
+"""Tests for brain.py's capture, search, and ask.
 
 Each test points brain.VAULT at a temp directory. Search tests need
-ripgrep and are skipped without it. Run with: python3 -m unittest discover tests
+ripgrep and are skipped without it. Ollama is stubbed out for ask, so
+no server or model is needed. Run with: python3 -m unittest discover tests
 """
 
 import io
@@ -14,6 +15,7 @@ import unittest
 from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -73,6 +75,87 @@ class FindTests(VaultTestCase):
         with redirect_stdout(io.StringIO()) as out:
             self.assertEqual(brain.main(["find", "absent"]), 1)
         self.assertEqual(out.getvalue(), "no matches\n")
+
+
+WORDS = ["tomato", "oil", "router"]
+
+
+def fake_embed(model, input):
+    """One dimension per keyword, so similarity is keyword overlap."""
+    vectors = [[float(w in text.lower()) for w in WORDS] + [0.01] for text in input]
+    return SimpleNamespace(embeddings=vectors)
+
+
+def fake_chat(model, messages, stream):
+    yield SimpleNamespace(message=SimpleNamespace(content="Sept 3 "))
+    yield SimpleNamespace(message=SimpleNamespace(content="[[Garden]]"))
+
+
+class AskTests(VaultTestCase):
+    def setUp(self):
+        super().setUp()
+        self.embed = patch.object(brain.ollama, "embed", side_effect=fake_embed)
+        self.embed_mock = self.embed.start()
+        self.addCleanup(self.embed.stop)
+        for folder, name, text in [
+            ("Projects", "Garden", "Tomato planted Sept 3.\n\nWatered daily."),
+            ("Areas", "Car", "Oil change due at 48,500 km."),
+        ]:
+            (self.vault / folder).mkdir(parents=True, exist_ok=True)
+            (self.vault / folder / f"{name}.md").write_text(text)
+
+    def test_index_chunks_by_paragraph_and_names_notes(self):
+        index = brain.load_index()
+        self.assertEqual(
+            [(name, chunk) for name, chunk, _ in index],
+            [("Car", "Oil change due at 48,500 km."),
+             ("Garden", "Tomato planted Sept 3."),
+             ("Garden", "Watered daily.")],
+        )
+        texts = self.embed_mock.call_args_list[0].kwargs["input"]
+        self.assertTrue(texts[0].startswith("search_document: "))
+
+    def test_cache_reembeds_only_changed_notes(self):
+        brain.load_index()
+        self.assertEqual(self.embed_mock.call_count, 2)
+        brain.load_index()
+        self.assertEqual(self.embed_mock.call_count, 2)
+        (self.vault / "Areas" / "Car.md").write_text("Oil change at 50,000 km.")
+        index = brain.load_index()
+        self.assertEqual(self.embed_mock.call_count, 3)
+        self.assertIn(("Car", "Oil change at 50,000 km."), [i[:2] for i in index])
+
+    def test_cache_drops_deleted_notes(self):
+        brain.load_index()
+        (self.vault / "Areas" / "Car.md").unlink()
+        self.assertEqual({i[0] for i in brain.load_index()}, {"Garden"})
+
+    def test_retrieve_ranks_by_similarity(self):
+        hits = brain.retrieve("when was the tomato planted?", brain.load_index(), k=1)
+        self.assertEqual(hits, [("Garden", "Tomato planted Sept 3.")])
+
+    def test_ask_sends_retrieved_notes_and_streams_answer(self):
+        with patch.object(brain.ollama, "chat", side_effect=fake_chat) as chat, \
+                redirect_stdout(io.StringIO()) as out:
+            brain.ask("tomato?")
+        self.assertEqual(out.getvalue(), "Sept 3 [[Garden]]\n")
+        prompt = chat.call_args.kwargs["messages"][1]["content"]
+        self.assertIn("[[Garden]]\nTomato planted Sept 3.", prompt)
+        self.assertIn("Question: tomato?", prompt)
+
+    def test_ask_with_empty_vault(self):
+        shutil.rmtree(self.vault)
+        self.vault.mkdir()
+        with redirect_stdout(io.StringIO()) as out:
+            brain.ask("anything")
+        self.assertEqual(out.getvalue(), "no notes to search\n")
+
+    def test_main_ask_starts_server(self):
+        with patch.object(brain, "ensure_server_running") as server, \
+                patch.object(brain, "ask") as ask:
+            self.assertEqual(brain.main(["ask", "two", "words"]), 0)
+        server.assert_called_once()
+        ask.assert_called_once_with("two words")
 
 
 class UsageTests(unittest.TestCase):

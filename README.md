@@ -70,7 +70,11 @@ recipe actually did to accuracy and overfitting.
   `$BRAIN_VAULT`, defaulting to Android shared storage so the Obsidian app
   can open it. `brain add TEXT` appends a timestamped line to today's
   `Inbox/` note; `brain find TERM` searches with ripgrep and opens the
-  match you pick in fzf in `$EDITOR`. No model involved.
+  match you pick in fzf in `$EDITOR`. `brain ask QUESTION` answers from
+  your notes with local RAG: notes are split into paragraphs, embedded with
+  `nomic-embed-text` (cached in the vault's `.brain/`, re-embedding only
+  changed notes), and the closest chunks go to `llama3.2:3b`, which cites
+  them as `[[Note Name]]`. Needs both models pulled.
 
 - **`skills/`** — markdown skill files (`code-review.md`, `shell-safety.md`,
   `summarize.md`) that `hermes_agent.py` can load on demand via its
@@ -104,7 +108,7 @@ python3 hermes_agent.py   # interactive tool-using chat agent
 python3 council.py        # interactive multi-model council
 python3 hermes_agent_langgraph.py   # the same agent, on LangGraph
 python3 langgraph_demo.py           # LangGraph planning/sub-agent demo
-python3 brain.py add TEXT | find TERM   # second-brain capture / search
+python3 brain.py add TEXT | find TERM | ask QUESTION   # second brain
 ```
 
 ## Testing
